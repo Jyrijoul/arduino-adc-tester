@@ -1,0 +1,44 @@
+@startuml tester
+
+' Interfaces/classes
+interface OutputDeviceInterface {
+    + init()
+    + write_sample()
+    + deinit()
+}
+
+class NiUsb6211 {
+    + init()
+    + write_sample()
+    + deinit()
+}
+
+interface InputDeviceInterface {
+    + init()
+    + read_sample()
+    + deinit()
+}
+
+class SerialDevice {
+    + init()
+    + read_sample()
+    + deinit()
+}
+
+class Tester {
+    + inputDevice
+    + outputDevice
+    + init()
+    + run_tests()
+    + output_data()
+    + deinit()
+}
+
+'  Relations
+OutputDeviceInterface <|-right- NiUsb6211
+InputDeviceInterface <|-left- SerialDevice
+
+Tester <|-right- OutputDeviceInterface
+Tester <|-left- InputDeviceInterface
+
+@enduml
