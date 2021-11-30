@@ -1,13 +1,19 @@
 from os import write
 import time
 import serial
-from serial.serialwin32 import Serial
 import serial.tools.list_ports
 import numpy as np
 import pandas as pd
 import nidaqmx
 from nidaqmx.stream_writers import AnalogSingleChannelWriter
 from nidaqmx.constants import AcquisitionType
+
+from serial_device import SerialDevice
+from ni_usb_6211 import NiUsb6211
+
+class Tester:
+    def __init__(self, input_device, output_device) -> None:
+        pass
 
 # Serial port constants
 BAUD_RATE = 115200
@@ -81,14 +87,14 @@ try:
 
             for i in range(len(data)):
                 writer.write_one_sample(data[i])
-                # print(f"Wrote sample {data[i]}.")
+                print(f"Wrote sample {data[i]}.")
 
                 ser.write("0".encode())
                 ser.flushOutput()
                 # time.sleep(0.1)
                 value = ser.readline().decode().strip()
                 # measurements.append(int(value))
-                # print(value)
+                print(value)
                 measurements[i] = int(value)
                 current_time = time.perf_counter_ns()
                 times[i] = current_time
@@ -98,8 +104,8 @@ try:
             stop_time = time.perf_counter()
         print("Total time:", stop_time - start_time, " s.")
         df = pd.DataFrame({"t": times, "vout": data, "code": measurements})
-        df.to_csv("measurements.csv", index=False)
-        print("Saved measurements to file.")
+        # df.to_csv("measurements.csv", index=False)
+        # print("Saved measurements to file.")
 except KeyboardInterrupt:
     print("Closing the program...")
 

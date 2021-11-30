@@ -5,10 +5,10 @@ from nidaqmx.constants import TerminalConfiguration
 from nidaqmx.stream_writers import AnalogSingleChannelWriter
 from nidaqmx.stream_readers import AnalogMultiChannelReader
 from nidaqmx.stream_readers import AnalogSingleChannelReader
-
+import time
 
 class NiUsb6211(OutputDeviceInterface):
-    timeout = 0
+    output_reading = 0.0
 
     def __init__(
         self,
@@ -16,22 +16,21 @@ class NiUsb6211(OutputDeviceInterface):
         output_channel="ao1",
         output_read_channel="ai0",
         vcc_read_channel="ai1",
+        reference_voltage_estimate=5.0,
+        timeout=1.0,
         verbose=True,
     ) -> None:
         self.device_name = device_name
         self.output_channel = output_channel
         self.output_read_channel = output_read_channel
         self.vcc_read_channel = vcc_read_channel
+        self.vcc_reading = reference_voltage_estimate
+        self.timeout = timeout
         self.verbose = verbose
 
-    def find_devices():
-        # DAQ devices
+    def find_devices() -> list[str]:
         system = nidaqmx.system.System.local()
-        # print(system.driver_version)
-
-        print("Available DAQ devices:")
-        for device in system.devices:
-            print("\t", device)
+        return [device.name for device in system.devices]
 
     def error_handler(self, err):
         self.write_task.close()
@@ -73,19 +72,19 @@ class NiUsb6211(OutputDeviceInterface):
 
             # task.timing.cfg_samp_clk_timing(1000, samps_per_chan=10000)
             self.writer = AnalogSingleChannelWriter(self.write_task.out_stream)
-            self.output_reader = AnalogMultiChannelReader(self.read_task.in_stream)
+            self.reader = AnalogMultiChannelReader(self.read_task.in_stream)
 
             if self.verbose:
                 print("Created writing and reading streams.")
         except Exception as e:
             self.error_handler(e)
 
-    def read_samples(self, n, channels=[0, 1]):
+    def read_samples(self, n, channels=[0, 1]) -> np.ndarray:
         try:
-            self.read_task.start()
+            # self.read_task.start()
             data = np.zeros((2, n))
             # self.output_reader.read_one_sample(data)
-            self.output_reader.read_many_sample(data, n)
+            self.reader.read_many_sample(data, n)
             return data[channels]
         except Exception as e:
             self.error_handler(e)
@@ -93,8 +92,21 @@ class NiUsb6211(OutputDeviceInterface):
     def write_sample(self, value):
         try:
             self.writer.write_one_sample(value)
+
+            # Also read the VCC for reference, and the output voltage for validation.
+            # These can be subsequently used by other methods.
+            samples = self.read_samples(1)
+            self.output_reading = samples[0, 0]
+            self.vcc_reading = samples[1, 0]
+            print(f"Output = {self.output_reading}, VCC = {self.vcc_reading}.")
         except Exception as e:
             self.error_handler(e)
+
+    def get_reference_voltage(self):
+        return self.vcc_reading
+
+    def get_measured_output_voltage(self):
+        return self.output_reading
 
     def deinit(self):
         if self.verbose:
@@ -104,7 +116,15 @@ class NiUsb6211(OutputDeviceInterface):
 
 
 niUsb6211 = NiUsb6211()
-NiUsb6211.find_devices()
+print(NiUsb6211.find_devices())
 niUsb6211.init()
-print(niUsb6211.read_samples(10, channels=[0, 1]))
+
+niUsb6211.write_sample(3.3)
+samples = niUsb6211.read_samples(10, channels=[0, 1])
+print(samples, samples.shape)
+
+samples = niUsb6211.read_samples(1, channels=0)
+print(samples, samples.shape)
+print(niUsb6211.get_reference_voltage(), niUsb6211.get_measured_output_voltage())
+niUsb6211.write_sample(0)
 niUsb6211.deinit()

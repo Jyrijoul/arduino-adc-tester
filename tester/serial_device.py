@@ -61,23 +61,18 @@ class SerialDevice(InputDeviceInterface):
             self.ser.close()
             raise e
 
-    def read_sample(self, **kwargs) -> float:
-        # return super().read_sample(**kwargs)
+    def read_sample(self) -> int:
         try:
             self.ser.write("0".encode())
             self.ser.flushOutput()
-            # time.sleep(0.1)
             value = self.ser.readline().decode().strip()
-            # measurements.append(int(value))
-            return value
+            return int(value)
         except Exception as e:
             self.ser.close()
             raise e
 
-    def deinit(self, **kwargs) -> None:
-        # return super().deinit(**kwargs)
+    def deinit(self) -> None:
         self.ser.close()
-
 
 serialDevice = SerialDevice()
 print(issubclass(SerialDevice, InputDeviceInterface))

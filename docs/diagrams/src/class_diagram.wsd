@@ -35,10 +35,10 @@ class Tester {
 }
 
 '  Relations
-OutputDeviceInterface <|-right- NiUsb6211
-InputDeviceInterface <|-left- SerialDevice
+OutputDeviceInterface <|-left- NiUsb6211
+InputDeviceInterface <|-right- SerialDevice
 
-Tester <|-right- OutputDeviceInterface
-Tester <|-left- InputDeviceInterface
+Tester <-left- OutputDeviceInterface
+Tester <-right- InputDeviceInterface
 
 @enduml
