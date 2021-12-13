@@ -1,26 +1,26 @@
 #define INPUT_PIN A0
-// #define READ_VCC
+#define BAUD_RATE 2000000
 
 int result = 0;
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(BAUD_RATE);
 }
 
 void loop() {
-    #ifndef READ_VCC
-    int prompt = Serial.read();
-    if (prompt != -1) {
-        result = analogRead(INPUT_PIN);
-        Serial.println(result);
-    } // else Serial.println(prompt);
-    #else
-    result = read_vcc();
-    Serial.println(result);
-    #endif
-    // Note: actual VCC reading with a voltmeter: 4.613 V
-    // Read VCC = 4663.08251953125±9.619952364524071, based on 2048 measurements
-    // Read VCC = 4671.031073446327±6.897034938153386, based on 1770 measurements.
+    int data = Serial.read();
+    if (data != -1) {
+        if (data == 'v') {
+            // Note: actual VCC reading with a voltmeter: 4.613 V
+            // Read VCC = 4663.08251953125±9.619952364524071, based on 2048 measurements
+            // Read VCC = 4671.031073446327±6.897034938153386, based on 1770 measurements.
+            result = read_vcc();
+            Serial.println(result);
+        } else {
+            result = analogRead(INPUT_PIN);
+            Serial.println(result);
+        }
+    } // else Serial.println(data);
 }
 
 // Source: https://code.google.com/archive/p/tinkerit/wikis/SecretVoltmeter.wiki
