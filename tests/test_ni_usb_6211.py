@@ -44,6 +44,7 @@ def test_integration():
     sample = 1.0
     niUsb6211.write_sample(sample)
     assert abs(niUsb6211.get_measured_output_voltage() - sample) <= TOLERANCE, f"Output reading ({niUsb6211.get_measured_output_voltage()}) does not match the written value ({sample})."
+    measurement = niUsb6211.get_measured_output_voltage()
     vref = niUsb6211.get_reference_voltage()
     
     def is_number(x):
@@ -53,7 +54,15 @@ def test_integration():
         except:
             return False
     
+    assert is_number(measurement), f"Get_reference_voltage() output ({vref}) not a number!"
     assert is_number(vref), f"Get_reference_voltage() output ({vref}) not a number!"
+
+    # Test different argument types.
+    sample = 1
+    niUsb6211.write_sample(sample)
+
+    sample = "1"
+    niUsb6211.write_sample(sample)
 
     # niUsb6211.read_samples(10, channels=[0, 1])
     niUsb6211.deinit()
