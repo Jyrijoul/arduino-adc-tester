@@ -1,130 +1,140 @@
-from os import write
 import time
-import serial
-import serial.tools.list_ports
 import numpy as np
 import pandas as pd
-import nidaqmx
-from nidaqmx.stream_writers import AnalogSingleChannelWriter
-from nidaqmx.constants import AcquisitionType
-
-from serial_device import SerialDevice
+from datetime import datetime
+from output_device import OutputDeviceInterface
+from input_device import InputDeviceInterface
 from ni_usb_6211 import NiUsb6211
+from serial_device import SerialDevice
+import cProfile
+
 
 class Tester:
-    def __init__(self, input_device, output_device) -> None:
-        pass
+    def __init__(
+        self, input_device, output_device, reference_voltage_estimate=5.0, profiling=False, verbose=True
+    ) -> None:
+        # print(issubclass(type(input_device), InputDeviceInterface))
+        # print(issubclass(type(output_device), OutputDeviceInterface))
+        assert issubclass(
+            type(input_device), InputDeviceInterface
+        ), f"The input device {input_device} must be a subclass of {InputDeviceInterface}."
+        assert issubclass(
+            type(output_device), OutputDeviceInterface
+        ), f"The output device {output_device} must be a subclass of {OutputDeviceInterface}."
 
-# Serial port constants
-BAUD_RATE = 115200
-TIMEOUT = 10
+        self.input_device = input_device
+        self.output_device = output_device
+        self.reference_voltage_estimate = reference_voltage_estimate
+        self.profiling = profiling
+        self.verbose = verbose
 
-# DAQ devices
-system = nidaqmx.system.System.local()
-system.driver_version
+        # Profile the code.
+        if self.profiling:
+            self.cp = cProfile.Profile()
 
-print("Available DAQ devices:")
-for device in system.devices:
-    print("\t", device)
+    def init(self):
+        self.input_device.init()
+        self.output_device.init()
 
-# Serial devices (Arduinos)
-serial_devices = serial.tools.list_ports.comports()
-arduino_port = "COM1"  # Select COM1 as a starting point.
+    def deinit(self):
+        self.input_device.deinit()
+        self.output_device.deinit()
 
-print("Available DAQ devices:")
-for device in serial_devices:
-    print("\t", device.device, "(Arduino Nano)" if "CH340" in device.description else "")
-    if "CH340" in device.description:
-        arduino_port = device.device
+    def print_loading_bar(idx, max_idx, bar_count=10):
+        if idx % (int(max_idx / bar_count)) == 0:
+            print("#", end="")
 
-n = 10000
-data = np.linspace(0, 5, n)
-measurements = np.zeros(n)
-times = np.zeros(n)
+    def run_tests(self, output_file_prefix="measurements", output_file_extension="csv"):
+        n = 10000
+        output_data = np.linspace(0, 5, n)
+        measurements = np.zeros(n)
+        times = np.zeros(n)
 
-# try:
-#     with serial.Serial(port=arduino_port, baudrate=BAUD_RATE, timeout=TIMEOUT) as ser:
+        # If the output device has methods to measure
+        # both the input device's reference voltage
+        # and also its own output voltage,
+        # then use them while performing measurements;
 
-#         previous_time = time.perf_counter_ns()
-#         current_time = time.perf_counter_ns()
-#         while True:
-#             value = ser.readline().decode().strip()
-#             measurements.append(int(value))
-#             current_time = time.perf_counter_ns()
-#             print(f"Δt = {(current_time - previous_time) / 1000}, us, f = {1 / ((current_time - previous_time) / 1000000000)}")
-#             previous_time = current_time
-#             print(value)
+        # Create the required arrays regardless.
+        # No modifying when the necessary methods do not exist.
+        measured_references = np.full(n, self.reference_voltage_estimate)
+        measured_outputs = np.copy(output_data)
 
-# except KeyboardInterrupt:
-#     print("Closing the program...")
+        measure_output = False
+        measure_reference = False
 
-#     if len(measurements) > 0:
-#         # print(measurements)
-#         print(f"Measurements average = {np.mean(measurements)}±{np.std(measurements)}, based on {len(measurements)} measurements.")
+        if hasattr(self.output_device, "get_measured_output_voltage") and callable(
+            self.output_device.get_measured_output_voltage
+        ):
+            measure_output = True
 
-try:
-    with nidaqmx.Task() as task:
-        task.ao_channels.add_ao_voltage_chan("Dev1/ao1")
-        # task.timing.cfg_samp_clk_timing(1000, samps_per_chan=10000)
-        writer = AnalogSingleChannelWriter(task.out_stream)
+        if hasattr(self.output_device, "get_reference_voltage") and callable(
+            self.output_device.get_reference_voltage
+        ):
+            measure_reference = True
 
-        # task.start()
-        # samples_written = writer.write_many_sample(data)
-        # task.stop()
+        start_time = (
+            time.perf_counter()
+        )  # For total measurement time with lesser accuracy
 
-        with serial.Serial(port=arduino_port, baudrate=BAUD_RATE, timeout=TIMEOUT) as ser:
+        if not self.verbose:
+            bar_count = 100
+            print("_" * bar_count)
 
-            writer.write_one_sample(0)
-            ser.write("abcdef".encode())
-            value = ser.readline().decode().strip()
-                # measurements.append(int(value))
-            print("Reading", value)
-            
-            start_time = time.perf_counter()
-            
-            previous_time = time.perf_counter_ns()
+        # Start profiling.
+        if self.profiling:
+            self.cp.enable()
+
+        for i in range(len(output_data)):
+            self.output_device.write_sample(output_data[i])
+
+            if measure_output:
+                measured_outputs[i] = self.output_device.get_measured_output_voltage()
+            if measure_reference:
+                measured_references[i] = self.output_device.get_reference_voltage()
+
+            measurements[i] = self.input_device.read_sample()
+            if self.verbose:
+                print(
+                    f"Wrote sample {output_data[i]}; measured output = {measured_outputs[i]}; measured reference {measured_references[i]}."
+                )
+                print(f"Read code {measurements[i]}.")
+            else:
+                Tester.print_loading_bar(i, n, bar_count=bar_count)
+
             current_time = time.perf_counter_ns()
+            times[i] = current_time
+            # print(f"Δt = {(current_time - previous_time) / 1000}, us, f = {1 / ((current_time - previous_time) / 1000000000)}")
+            previous_time = current_time
 
-            for i in range(len(data)):
-                writer.write_one_sample(data[i])
-                print(f"Wrote sample {data[i]}.")
+        # Stop profiling.
+        if self.profiling:
+            self.cp.disable()
 
-                ser.write("0".encode())
-                ser.flushOutput()
-                # time.sleep(0.1)
-                value = ser.readline().decode().strip()
-                # measurements.append(int(value))
-                print(value)
-                measurements[i] = int(value)
-                current_time = time.perf_counter_ns()
-                times[i] = current_time
-                # print(f"Δt = {(current_time - previous_time) / 1000}, us, f = {1 / ((current_time - previous_time) / 1000000000)}")
-                previous_time = current_time
+        # Complete the loading bar
+        if not self.verbose:
+            print()
+        stop_time = time.perf_counter()
+        print("Total time:", stop_time - start_time, "s.")
+        df = pd.DataFrame(
+            {
+                "t": times,
+                "vout": output_data,
+                "code": measurements,
+                "vout_meas": measured_outputs,
+                "vref": measured_references,
+            }
+        )
+        df.to_csv(f'{output_file_prefix}_{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}_.{output_file_extension}', index=False)
+        print("Saved measurements to file.")
 
-            stop_time = time.perf_counter()
-        print("Total time:", stop_time - start_time, " s.")
-        df = pd.DataFrame({"t": times, "vout": data, "code": measurements})
-        # df.to_csv("measurements.csv", index=False)
-        # print("Saved measurements to file.")
-except KeyboardInterrupt:
-    print("Closing the program...")
-
-    if len(measurements) > 0:
-        # print(measurements)
-        print(f"Measurements average = {np.mean(measurements)}±{np.std(measurements)}, based on {len(measurements)} measurements.")
+        # Dump profiling statistics.
+        if self.profiling:
+            self.cp.dump_stats("profiling_2")
 
 
-    # print(f"Samples written: {samples_written}.")
-
-# sample_rate = 1.0
-
-# with nidaqmx.Task() as task:
-#     task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-#     task.timing.cfg_samp_clk_timing(sample_rate, samps_per_chan=3)
-
-#     task.start()
-#     for i in range(3):
-#         output = task.read()
-#         print(output)
-    
-#     task.stop()
+if __name__ == "__main__":
+    tester = Tester(SerialDevice(), NiUsb6211(output_channel="ao1"), verbose=False)
+    tester.init()
+    tester.run_tests()
+    tester.deinit()
