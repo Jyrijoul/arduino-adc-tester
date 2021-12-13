@@ -10,7 +10,7 @@ class SerialDevice(InputDeviceInterface):
     baud_rate = 115200
     verbose = True
 
-    def __init__(self, timeout=1, serial_port="", baud_rate=115200, verbose=True) -> None:
+    def __init__(self, timeout=1, serial_port="", baud_rate: int = 2000000, verbose=True) -> None:
         self.timeout = timeout
         self.serial_port = serial_port
         self.baud_rate = baud_rate
@@ -61,9 +61,9 @@ class SerialDevice(InputDeviceInterface):
             self.ser.close()
             raise e
 
-    def read_sample(self) -> int:
+    def read_sample(self, char_to_write: str = "a") -> int:
         try:
-            self.ser.write("0".encode())
+            self.ser.write(char_to_write.encode())
             self.ser.flushOutput()
             value = self.ser.readline().decode().strip()
             return int(value)
@@ -73,11 +73,15 @@ class SerialDevice(InputDeviceInterface):
 
     def deinit(self) -> None:
         self.ser.close()
+        if self.verbose:
+            print("Serial connection closed.")
 
-serialDevice = SerialDevice()
-print(issubclass(SerialDevice, InputDeviceInterface))
 
-serialDevice.init()
-for i in range(100):
-    print(serialDevice.read_sample())
-serialDevice.deinit()
+if __name__ == "__main__":
+    serialDevice = SerialDevice()
+    print(issubclass(SerialDevice, InputDeviceInterface))
+
+    serialDevice.init()
+    for i in range(100):
+        print(serialDevice.read_sample())
+    serialDevice.deinit()

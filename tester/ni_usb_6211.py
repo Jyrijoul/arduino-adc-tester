@@ -7,13 +7,15 @@ from nidaqmx.stream_readers import AnalogMultiChannelReader
 from nidaqmx.stream_readers import AnalogSingleChannelReader
 import time
 
+
 class NiUsb6211(OutputDeviceInterface):
+    timeout = 0.0
     output_reading = 0.0
 
     def __init__(
         self,
         device_name="Dev1",
-        output_channel="ao1",
+        output_channel="ao0",
         output_read_channel="ai0",
         vcc_read_channel="ai1",
         reference_voltage_estimate=5.0,
@@ -79,7 +81,7 @@ class NiUsb6211(OutputDeviceInterface):
         except Exception as e:
             self.error_handler(e)
 
-    def read_samples(self, n, channels=[0, 1]) -> np.ndarray:
+    def read_samples(self, n, channels: list[int] = [0, 1]) -> np.ndarray:
         try:
             # self.read_task.start()
             data = np.zeros((2, n))
@@ -89,19 +91,28 @@ class NiUsb6211(OutputDeviceInterface):
         except Exception as e:
             self.error_handler(e)
 
-    def write_sample(self, value):
+    def write_sample(self, value: float):
+        # Enter the critical section, where an exception 
+        # indicates the need to deinitialize the tasks.
         try:
+            # Try whether the value is a float or not.
+            value = float(value)
+
+            # Write the voltage.
             self.writer.write_one_sample(value)
 
-            # Also read the VCC for reference, and the output voltage for validation.
-            # These can be subsequently used by other methods.
+            # Read the written voltage and VCC.
             samples = self.read_samples(1)
-            self.output_reading = samples[0, 0]
-            self.vcc_reading = samples[1, 0]
-            print(f"Output = {self.output_reading}, VCC = {self.vcc_reading}.")
+            
         except Exception as e:
             self.error_handler(e)
 
+        # Also read the VCC for reference, and the output voltage for validation.
+        # These can be subsequently used by other methods.
+        self.output_reading = samples[0, 0]
+        self.vcc_reading = samples[1, 0]
+        # print(f"Output = {self.output_reading}, VCC = {self.vcc_reading}.")
+    
     def get_reference_voltage(self):
         return self.vcc_reading
 
@@ -110,21 +121,22 @@ class NiUsb6211(OutputDeviceInterface):
 
     def deinit(self):
         if self.verbose:
-                print("Closing the tasks.")
+            print("Closing the tasks.")
         self.write_task.close()
         self.read_task.close()
 
 
-niUsb6211 = NiUsb6211()
-print(NiUsb6211.find_devices())
-niUsb6211.init()
+if __name__ == "__main__":
+    niUsb6211 = NiUsb6211()
+    print(NiUsb6211.find_devices())
+    niUsb6211.init()
 
-niUsb6211.write_sample(3.3)
-samples = niUsb6211.read_samples(10, channels=[0, 1])
-print(samples, samples.shape)
+    niUsb6211.write_sample(3.3)
+    samples = niUsb6211.read_samples(10, channels=[0, 1])
+    print(samples, samples.shape)
 
-samples = niUsb6211.read_samples(1, channels=0)
-print(samples, samples.shape)
-print(niUsb6211.get_reference_voltage(), niUsb6211.get_measured_output_voltage())
-niUsb6211.write_sample(0)
-niUsb6211.deinit()
+    samples = niUsb6211.read_samples(1, channels=0)
+    print(samples, samples.shape)
+    print(niUsb6211.get_reference_voltage(), niUsb6211.get_measured_output_voltage())
+    niUsb6211.write_sample(0)
+    niUsb6211.deinit()
