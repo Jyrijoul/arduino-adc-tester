@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+    <style>
+        th {
+            width: 50%;
+            text-align: left;
+        }
+
+        td {
+            width: 50%;
+            text-align: right;
+        }
+    </style>
+
+    <title>Results from the ADC analysis</title>
+</head>
+<body>
+    <div class="m-4 text-center">
+        <h1>ADC test results</h1>
+        <div class="col-sm-8 m-auto">
+            <h3 class="mb-4 text-left">Static analysis:</h3>
+            <table class="table table-sm">
+                <tbody>
+                <tr>
+                    <th>Absolute accuracy</th>
+                    <td>1.22 (LSB)</td>
+                </tr>
+                <tr>
+                    <th>Offset error</th>
+                    <td>0.25 (LSB)</td>
+                </tr>
+                <tr>
+                    <th>Gain error</th>
+                    <td>0.3 (LSB)</td>
+                </tr>
+                <tr>
+                    <th>Differential non-linearity</th>
+                    <td>1.5 (LSB)</td>
+                </tr>
+                <tr>
+                    <th>Integral non-linearity</th>
+                    <td>1.042 (LSB)</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <img src="errors.png" alt="ADC ramp">
+        <img src="perfect_histogram.png" alt="Perfect histogram">
+        <img src="actual_histogram.png" alt="Actual histogram">
+        <img src="dnl.png" alt="Differential non-linearity">
+        <img src="inl.png" alt="Integral non-linearity">
+    </div>
+
+    <div class="m-4 mt-6 text-center">
+        <div class="col-sm-8 m-auto">
+            <h3 class="mb-4 text-left">Input-referred noise:</h3>
+        </div>
+        <img src="input_noise.png" alt="Input-referred noise">
+    </div>
+
+    <div class="m-4 mt-6 text-center">
+        <div class="col-sm-8 m-auto">
+            <h3 class="mb-4 text-left">Dynamic analysis:</h3>
+            <table class="table table-sm">
+                <tbody>
+                <tr>
+                    <th>Signal-to-noise ratio (measured)</th>
+                    <td>39.601 (dB)</td>
+                </tr>
+                <tr>
+                    <th>Signal-to-noise ratio (theoretical)</th>
+                    <td>61.96 (dB)</td>
+                </tr>
+                <tr>
+                    <th>Total harmonic distortion</th>
+                    <td>65.014 (dB)</td>
+                </tr>
+                <tr>
+                    <th>Spurious-free dynamic range</th>
+                    <td>61.182 (dB)</td>
+                </tr>
+                <tr>
+                    <th>Signal-to-noise ratio and distortion</th>
+                    <td>39.588 (dB)</td>
+                </tr>
+                <tr>
+                    <th>Effective number of bits</th>
+                    <td>6.284</td>
+                </tr>
+                <tr>
+                    <th>Noise floor</th>
+                    <td>81.06 (dB)</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <img src="dynamic_analysis.png" alt="Dynamic analysis">
+    </div>
+</body>
+</html>
