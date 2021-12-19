@@ -219,7 +219,11 @@ class SerialDevice(InputDeviceInterface):
 
     def deinit(self) -> None:
         """Closes the serial connection."""
-        self.ser.close()
+        try:
+            self.ser.write("e".encode())  # Try to get the Arduino to the neutral mode.
+        except Exception as e:
+            print(e)
+        self.ser.close()  # Only then close the serial connection.
         if self.verbose:
             print("Serial connection closed.")
 
