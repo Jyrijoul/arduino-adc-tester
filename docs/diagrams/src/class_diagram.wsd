@@ -9,7 +9,13 @@ interface OutputDeviceInterface {
 
 class NiUsb6211 {
     + init()
+    + find_devices()
+    + error_handler()
     + write_sample()
+    + write_samples_clocked()
+    + read_samples()
+    + get_reference_voltage()
+    + get_measured_output_voltage()
     + deinit()
 }
 
@@ -21,7 +27,10 @@ interface InputDeviceInterface {
 
 class SerialDevice {
     + init()
+    + read()
     + read_sample()
+    + read_samples_clocked()
+    + read_vcc()
     + deinit()
 }
 
