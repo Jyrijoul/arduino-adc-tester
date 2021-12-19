@@ -146,6 +146,7 @@ class NiUsb6211(OutputDeviceInterface):
     def write_sample(self, value: float, read=True):
         """Outputs a desired voltage.
 
+        The device must be initialized in the "software" triggering mode!
         Optionally also reads both the reference voltage
         as well as the current output voltage.
         
@@ -161,6 +162,7 @@ class NiUsb6211(OutputDeviceInterface):
             Also, pass "update = False" for both of them
             to directly get the values read and saved in this method.
         """
+
         # Enter the critical section, where an exception
         # indicates the need to deinitialize the tasks.
         try:
@@ -185,6 +187,20 @@ class NiUsb6211(OutputDeviceInterface):
         # print(f"Output = {self.output_reading}, VCC = {self.vcc_reading}.")
 
     def write_samples_clocked(self, samples: np.ndarray, sample_rate: float) -> None:
+        """Outputs desired voltages.
+
+        The device must be initialized in the "hardware" triggering mode!
+        Optionally also reads both the reference voltage
+        as well as the current output voltage.
+        
+        Parameters
+        ----------
+        samples : np.ndarray of floats (or integers)
+            The output voltages.
+        sample_rate : float
+            Specifies the sample rate for outputting samples and generating the hardware triggering signal (clock).
+        """
+
         # Enter the critical section, where an exception
         # indicates the need to deinitialize the tasks.
         try:
