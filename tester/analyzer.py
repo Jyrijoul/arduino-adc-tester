@@ -26,7 +26,7 @@ class Analyzer:
         rounding_digits=3,
     ):
         Analyzer.plot_input_referred_noise(input_noise_data_filename)
-        offset_error, gain_error, dnl, inl = Analyzer.perform_static_analysis(
+        offset_error, gain_error, dnl, inl, tue = Analyzer.perform_static_analysis(
             static_data_filename
         )
         (
@@ -45,6 +45,7 @@ class Analyzer:
         )
 
         variables = {
+            "tue": tue,
             "offset_error": offset_error,
             "gain_error": gain_error,
             "dnl": dnl,
@@ -230,11 +231,13 @@ class Analyzer:
         plt.savefig("errors." + extension)
 
         # Histogram testing
+        # TODO: Figure out why using the measured voltage causes the INL to accumulate to an unreasonably high value.
+        # (right now, changed ".vout_meas" to just ".vout")
         perfect_codes = (
             np.maximum(
                 np.round(
                     Analyzer.perfect_adc_code(
-                        lr.slope * data_original.vout_meas + lr.intercept, res, vref
+                        lr.slope * data_original.vout + lr.intercept, res, vref
                     )
                     * (res / vref)
                 ),
@@ -258,7 +261,8 @@ class Analyzer:
 
         # DNL
         dnls = real_hist[0] / perfect_hist[0] - 1
-        dnl = np.nanmax(np.abs(dnls[np.isfinite(dnls)]))
+        # dnl = np.nanmax(np.abs(dnls[np.isfinite(dnls)]))
+        dnl = dnls[np.abs(dnls[np.isfinite(dnls)]).argmax()]
         # print(f"Differential non-linearity: {round(dnl, 2)} LSB.")
 
         # INL
@@ -266,17 +270,10 @@ class Analyzer:
         for i in range(len(dnls)):
             inls[i] = np.sum(dnls[: i + 1])
 
-        inl = np.nanmax(np.abs(inls[np.isfinite(inls)]))
+        # inl = np.nanmax(np.abs(inls[np.isfinite(inls)]))
+        inl = inls[np.abs(inls[np.isfinite(inls)]).argmax()]
         # print(f"Integral non-linearity: {round(inl, 2)} LSB.")
 
-        # Print out all the errors found so far.
-        print(
-            f"""Offset error = {round(offset_error, 2)} LSB, 
-        Full-scale error: {round(fs_error, 2)} LSB, 
-        Gain error = {round(gain_error, 2)} LSB,
-        Differential non-linearity = {round(dnl, 2)} LSB,
-        Integral non-linearity = {round(inl, 2)} LSB."""
-        )
 
         # Plot DNL and INL.
         Analyzer.plot(
@@ -288,7 +285,20 @@ class Analyzer:
         )
         plt.savefig("inl." + extension)
 
-        return offset_error, gain_error, dnl, inl
+        # Also calculate the TUE.
+        tue = np.sqrt(0.5 ** 2 + offset_error ** 2 + gain_error ** 2 + inl ** 2)
+
+        # Print out all the errors found so far.
+        print(
+            f"""Offset error = {round(offset_error, 2)} LSB, 
+        Full-scale error: {round(fs_error, 2)} LSB, 
+        Gain error = {round(gain_error, 2)} LSB,
+        Differential non-linearity = {round(dnl, 2)} LSB,
+        Integral non-linearity = {round(inl, 2)} LSB.
+        Total unadjusted error = {round(tue, 2)}"""
+        )
+
+        return offset_error, gain_error, dnl, inl, tue
 
     def plot_input_referred_noise(
         filename: str, output_filename="input_noise", extension="png"
@@ -427,4 +437,4 @@ class Analyzer:
 
 
 if __name__ == "__main__":
-    Analyzer.print_results("measurements_0.csv", "sine_0.csv", "input_noise_0.csv")
+    Analyzer.print_results("linear_ramp_sw_1.csv", "sine_1.csv", "input_noise_1.csv")
